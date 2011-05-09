@@ -29,13 +29,14 @@ class CustomAssertionError(AssertionError):
         CustomAssertionError.io_loop.stop()
 
 def handle_callback_exception(callback):
-    (type, value, traceback) = sys.exc_info()
-    raise type, value, None
+    (type, value, tb_) = sys.exc_info()
+    raise type, value, tb_
 
 class TornadoTestCase(unittest.TestCase):
     def __init__(self, *args, **kwargs):
         super(TornadoTestCase, self).__init__(*args, **kwargs)
         self.failureException = CustomAssertionError
+        self.is_dirty = True
 
     def setUp(self):
         self.loop = IOLoop.instance()
@@ -43,10 +44,15 @@ class TornadoTestCase(unittest.TestCase):
         CustomAssertionError.io_loop = self.loop
         self.client = brukva.Client(selected_db=9, io_loop=self.loop)
         self.client.connect()
-        self.client.flushdb()
+        def on_flushdb_done(callbacks):
+            self.is_dirty = False
+            self.finish()
+        self.client.flushdb(on_flushdb_done)
+        self.start()
 
     def tearDown(self):
         del self.client
+        self.is_dirty = True
 
     def expect(self, expected):
         source_line = '\n' + tb.format_stack()[-2]
@@ -103,6 +109,9 @@ class TornadoTestCase(unittest.TestCase):
                 One line of test_plan:
                 [client method name, callbacks, args=None, kwargs=None]
             """
+            while self.is_dirty:
+                print 'skipping'
+                time.sleep(0.01)
             try:
                 for instruction in test_plan:
                     if not hasattr(instruction, '__call__'):
@@ -200,11 +209,11 @@ class ServerCommandsTestCase(TornadoTestCase):
             ('dbsize', self.expect(2)),
         ])
 
-    def _test_save(self):
+    def test_save(self):
         self._run_plan([
             ('save', (), self.expect(True)),
             lambda cb: cb(datetime.now().replace(microsecond=0)),
-            ('lastsave', (), self.expect(lambda d: d >= self.result[-1]))
+            ('lastsave', (), self.expect(lambda d: d >= self.results[-1]))
         ])
 
     def test_keys(self):
