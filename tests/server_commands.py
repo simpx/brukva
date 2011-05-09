@@ -17,8 +17,8 @@ from brukva.adisp import process, async
 async = partial(async, cbname='cb')
 from brukva.exceptions import ResponseError, RequestError
 
-import logging; logging.basicConfig()
-logging.getLogger().setLevel(logging.DEBUG)
+log_format =  "[%(asctime)s][%(module)s] %(name)s: %(message)s"
+import logging; logging.basicConfig(level=logging.DEBUG, format=log_format)
 
 def callable(obj):
     return hasattr(obj, '__call__')
@@ -629,53 +629,28 @@ class PipelineTestCase(TornadoTestCase):
 
         self.start()
 
-    def test_mix_with_pipe(self):
-        pipe = self.client.pipeline()
-
-        self.client.set('foo', '123', self.expect(True))
-        self.client.hmset('bar', {'zar': 'gza'},)
-
-        pipe.get('foo')
-        self.client.get('foo', self.expect('123') )
-
-        pipe.hgetall('bar')
-
-        pipe.execute([self.pexpect(['123', {'zar': 'gza'}]), self.finish])
-        self.start()
-
-
-    def test_mix_with_pipe_multi(self):
-        pipe = self.client.pipeline(transactional=True)
-
-        self.client.set('foo', '123', self.expect(True))
-        self.client.hmset('bar', {'zar': 'gza'},)
-
-        pipe.get('foo')
-        self.client.get('foo', self.expect('123') )
-
-        pipe.hgetall('bar')
-
-        pipe.execute([self.pexpect(['123', {'zar': 'gza'}]), self.finish])
-        self.start()
-
     def test_pipe_watch(self):
-        self.client.watch('foo', self.expect(True))
-        self.client.set('bar', 'zar', self.expect(True))
         pipe = self.client.pipeline(transactional=True)
         pipe.get('bar')
-        pipe.execute([self.pexpect(['zar',]), self.finish])
-        self.start()
+
+        self._run_plan([
+            ('watch', 'foo', self.expect(True)),
+            ('set', ('bar', 'zar'), self.expect(True)),
+            lambda cb: pipe.execute([self.pexpect(['zar',]), cb]),
+        ])
 
     def test_pipe_watch2(self):
-        self.client.set('foo', 'bar', self.expect(True))
-        self.client.watch('foo', self.expect(True))
-        self.client.set('foo', 'zar', self.expect(True))
         pipe = self.client.pipeline(transactional=True)
         pipe.get('foo')
-        pipe.execute([self.pexpect([]), self.finish])
-        self.start()
 
-    def test_pipe_unwatch(self):
+        self._run_plan([
+            ('set', ('foo', 'bar'), self.expect(True)),
+            ('watch', 'foo', self.expect(True)),
+            ('set', ('foo', 'zar'), self.expect(True)),
+            lambda cb: pipe.execute([self.pexpect([]), cb]),
+        ])
+
+    def _test_pipe_unwatch(self):
         self.client.set('foo', 'bar', self.expect(True))
         self.client.watch('foo', self.expect(True))
         self.client.set('foo', 'zar', self.expect(True))
