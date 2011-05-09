@@ -411,7 +411,7 @@ class ServerCommandsTestCase(TornadoTestCase):
             ('smembers', 'zar', self.expect(set(['a', 'b', 'c', 'd']))),
         ])
 
-    def _test_zsets(self):
+    def test_zsets(self):
         self._run_plan([
             ('zadd', ('foo', 1, 'a'), self.expect(1)),
             ('zadd', ('foo', 2, 'b'), self.expect(1)),
@@ -436,14 +436,17 @@ class ServerCommandsTestCase(TornadoTestCase):
             ('zrangebyscore', ('foo', '-inf', '3.0', 0, 1, False), self.expect(['a'])),
             ('zrangebyscore', ('foo', '-inf', '+inf', 1, 2, False), self.expect(['b', 'c'])),
 
-            ('delet', 'foo', self.expect(True)),
+            ('delete', 'foo', self.expect(True)),
             ('zadd', ('foo', 1, 'a'), self.expect(1)),
             ('zadd', ('foo', 2, 'b'), self.expect(1)),
             ('zadd', ('foo', 3, 'c'), self.expect(1)),
             ('zadd', ('foo', 4, 'd'), self.expect(1)),
             ('zremrangebyrank', ('foo', 2, 4), self.expect(2)),
             ('zremrangebyscore', ('foo', 0, 2), self.expect(2)),
+        ])
 
+    def test_zsets2(self):
+        self._run_plan([
             ('zadd', ('a', 1, 'a1'), self.expect(1)),
             ('zadd', ('a', 1, 'a2'), self.expect(1)),
             ('zadd', ('a', 1, 'a3'), self.expect(1)),
@@ -472,20 +475,20 @@ class ServerCommandsTestCase(TornadoTestCase):
 
             # ZUNIONSTORE
             # sum, no weight
-            ('zunionstore', ('z', ['a', 'b', 'c']), self.expect(5)),
+            ('zunionstore', ('z', ['a', 'b', 'c']), self.expect(4)),
             ('zrange', ('z', 0, -1), dict(with_scores=True),
-                self.expect([('a2', 1), ('a3', 3), ('a5', 4), ('a4', 7), ('a1', 9), ])
+                self.expect([('a2', 1), ('a4', 6), ('a3', 8), ('a1', 9), ])
             ),
             # max, no weight
-            ('zunionstore', ('z', ['a', 'b', 'c']), dict(aggregate='MAX'), self.expect(5)),
+            ('zunionstore', ('z', ['a', 'b', 'c']), dict(aggregate='MAX'), self.expect(4)),
             ('zrange', ('z', 0, -1), dict(with_scores=True),
-                self.expect([('a2', 1), ('a3', 2), ('a5', 4), ('a4', 5), ('a1', 6), ])),
+                self.expect([('a2', 1), ('a4', 4), ('a3', 5), ('a1', 6), ])),
 
 
             # with weight
-            ('zunionstore', ('z', {'a': 1, 'b': 2, 'c': 3}), self.expect(5)),
+            ('zunionstore', ('z', {'a': 1, 'b': 2, 'c': 3}), self.expect(4)),
             ('zrange', ('z', 0, -1), dict(with_scores=True),
-                self.expect([('a2', 1), ('a3', 5), ('a5', 12), ('a4', 19), ('a1', 23), ])),
+                self.expect([('a2', 1), ('a4', 16), ('a3', 20), ('a1', 23), ])),
     ])
 
     def test_long_zset(self):
