@@ -166,7 +166,7 @@ class Connection(object):
             self.connected()
         except socket.error, e:
             raise ConnectionError(str(e))
-        self.on_connect()
+        self.on_connect(weakref.proxy(self))
 
     def disconnect(self):
         if self._stream:
