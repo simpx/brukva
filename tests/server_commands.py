@@ -18,6 +18,8 @@ async = partial(async, cbname='cb')
 from brukva.exceptions import ResponseError, RequestError
 
 import logging; logging.basicConfig()
+logging.getLogger().setLevel(logging.DEBUG)
+
 def callable(obj):
     return hasattr(obj, '__call__')
 

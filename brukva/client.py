@@ -15,6 +15,7 @@ from datetime import datetime
 from brukva.exceptions import RequestError, ConnectionError, ResponseError, InvalidResponse
 
 log = logging.getLogger('brukva.client')
+log_blob = logging.getLogger('brukva.client.blob')
 
 class ExecutionContext(object):
     def __init__(self, callbacks, error_wrapper=None):
@@ -87,6 +88,15 @@ class Message(object):
         self.kind = kind
         self.channel = channel
         self.body = body
+
+    def __unicode__(self):
+        return u'<PubSub %s on channel %s: %s >' % (self.kind, self.channel, self.body)
+
+    def __str__(self):
+        return '<PubSub %s on channel %s: %s >' % (self.kind, self.channel, self.body)
+
+    def __repr__(self):
+        return repr(str(self))
 
 class CmdLine(object):
     def __init__(self, cmd, *args, **kwargs):
