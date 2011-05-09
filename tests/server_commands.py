@@ -870,29 +870,30 @@ class AsyncWrapperTestCase(TornadoTestCase):
 
 class ReconnectTestCase(TornadoTestCase):
     def test_redis_timeout(self):
-        self.client.set('foo', 'bar', self.expect(True))
-        self.delayed(10, lambda:
-            self.client.get('foo', [
-                self.expect('bar'),
-                self.finish
-            ])
-        )
-        self.start()
+        self._run_plan([
+            ('set', ('foo', 'bar'), self.expect(True)),
+            lambda cb: self.delayed(10, lambda:
+                self.client.get('foo', [
+                    self.expect('bar'),
+                    cb
+                ])
+            )
+        ])
 
     def test_redis_timeout_with_pipe(self):
-        self.client.set('foo', 'bar', self.expect(True))
         pipe = self.client.pipeline(transactional=True)
         pipe.get('foo')
 
-        self.delayed(10, lambda:
-            pipe.execute([
-                self.pexpect([
-                    'bar',
-                ]),
-                self.finish,
-            ])
-        )
-        self.start()
-
+        self._run_plan([
+            ('set', ('foo', 'bar'), self.expect(True)),
+            lambda cb: self.delayed(10, lambda:
+                pipe.execute([
+                    self.pexpect([
+                        'bar',
+                    ]),
+                    cb,
+                ])
+            )
+        ])
 if __name__ == '__main__':
     unittest.main()
