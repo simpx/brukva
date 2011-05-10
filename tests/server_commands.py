@@ -15,6 +15,7 @@ from tornado.ioloop import IOLoop
 import brukva
 from brukva.adisp import process, async
 async = partial(async, cbname='cb')
+import brukva.exceptions
 from brukva.exceptions import ResponseError, RequestError
 
 log_format =  "[%(asctime)-15s][%(levelname)-5s][%(lineno)-4d:%(funcName)-26s] %(name)-20s: %(message)s"
@@ -115,17 +116,20 @@ class TornadoTestCase(unittest.TestCase):
                 print 'skipping'
                 time.sleep(0.01)
             try:
+                exception_handler = None
                 for instruction in test_plan:
                     if not hasattr(instruction, '__call__'):
+                        args = tuple()
+                        kwargs = {}
                         if len(instruction) == 2:
                             method_name,  callbacks = instruction
-                            args = tuple()
-                            kwargs = {}
                         elif len(instruction) == 3:
                             method_name, args, callbacks = instruction
                             kwargs = {}
-                        else:
+                        elif len(instruction) == 4:
                             method_name, args, kwargs, callbacks = instruction
+                        else:
+                            method_name, args, kwargs, callbacks, exception_handler = instruction
 
                         if args is None:
                             args = tuple()
@@ -144,8 +148,14 @@ class TornadoTestCase(unittest.TestCase):
                         def instruction(cb):
                             callbacks.append(cb)
                             return getattr(self.client, method_name)(*args, **kwargs)
+                    try:
+                        result = yield async(instruction)()
+                    except Exception, e:
+                        if exception_handler:
+                            result = e
+                            if not exception_handler(e):
+                                raise e
 
-                    result = yield async(instruction)()
                     self.results.append(result)
             finally:
                 self.finish()
@@ -213,9 +223,14 @@ class ServerCommandsTestCase(TornadoTestCase):
 
     def test_save(self):
         self._run_plan([
-            ('save', (), self.expect(True)),
+            ('save', (), {},
+                self.expect(lambda r: r == True or isinstance(r, brukva.exceptions.InternalRedisError)),
+                lambda e: isinstance(e, brukva.exceptions.InternalRedisError)),
             lambda cb: cb(datetime.now().replace(microsecond=0)),
-            ('lastsave', (), self.expect(lambda d: d >= self.results[-1]))
+            ('lastsave', (), self.expect(
+                lambda d: isinstance(self.results[-2], brukva.exceptions.InternalRedisError) or
+                d >= self.results[-2])
+            )
         ])
 
     def test_keys(self):
