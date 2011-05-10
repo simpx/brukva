@@ -30,11 +30,14 @@ class ResponseError(RedisError):
 
     def __repr__(self):
         if self.cmd_line:
-            return 'ResponseError (on %s [%s, %s]): %s' % (self.cmd_line.cmd, self.cmd_line.args, self.cmd_line.kwargs, self.message)
-        return 'ResponseError: %s' % self.message
+            return '%s (on %s [%s, %s]): %s' % (self.__class__, self.cmd_line.cmd, self.cmd_line.args, self.cmd_line.kwargs, self.message)
+        return  '%s: %s' % (self.__class__, self.message)
 
     __str__ = __repr__
 
+
+class InternalRedisError(ResponseError):
+    pass
 
 class InvalidResponse(RedisError):
     pass
