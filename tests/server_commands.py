@@ -17,7 +17,7 @@ from brukva.adisp import process, async
 async = partial(async, cbname='cb')
 from brukva.exceptions import ResponseError, RequestError
 
-log_format =  "[%(asctime)s][%(module)s] %(name)s: %(message)s"
+log_format =  "[%(asctime)-15s][%(levelname)-5s][%(lineno)-4d:%(funcName)-26s] %(name)-20s: %(message)s"
 import logging; logging.basicConfig(level=logging.DEBUG, format=log_format)
 
 def callable(obj):
