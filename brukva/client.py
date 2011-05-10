@@ -274,8 +274,9 @@ class ConnectionPool(object):
         for idx in xrange(self.pool_size):
             @process
             def on_connect(connection, add_to_free=True):
-                log_blob.debug('on_connect from pool')
+                log_blob.debug('before invoke self._on_connect with connection %s', connection.idx)
                 yield async(self._on_connect)(connection)
+                log_blob.debug('after invoke self._on_connect with connection %s', connection.idx)
                 if add_to_free:
                     self.free_connections.add(connection.idx)
                     log.info('connection %s added to pool',
@@ -546,6 +547,7 @@ class Client(object):
                     log_blob.debug('got result %s on cmd %s', result, cmd_line)
 
             connection.is_initialized = True
+            log_blob.debug('connection %s initialized', connection.idx)
             ctx.ret_call(True)
 
 
@@ -578,16 +580,16 @@ class Client(object):
             #    self._waiting_callbacks[cmd].append(callbacks)
             #    return
 
-            data = yield async(connection.readline)()
-            if not data:
+            try:
+                data = yield async(connection.readline)()
+                if not data:
+                    raise Exception('TODO: [no data from connection %s->readline' % connection.idx)
+                else:
+                    response = yield self.process_data(connection, data, cmd_line)
+                    result = self.format_reply(cmd_line, response)
+                    log_blob.debug('got result %s on cmd %s with connection %s', result, cmd_line, connection.idx)
+            finally:
                 self.connection_pool.return_connection(connection)
-                raise Exception('TODO: [no data from connection %s->readline' % connection.idx)
-            else:
-                response = yield self.process_data(connection, data, cmd_line)
-                result = self.format_reply(cmd_line, response)
-                self.connection_pool.return_connection(connection)
-                log_blob.debug('got result %s on cmd %s with connection %s', result, cmd_line, connection.idx)
-
             ctx.ret_call(result)
 
     @async
