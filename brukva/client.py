@@ -628,8 +628,13 @@ class Client(object):
             tokens.append(start)
             tokens.append(num)
         if get is not None:
-            tokens.append('GET')
-            tokens.append(get)
+            if isinstance(get, basestring):
+                tokens.append('GET')
+                tokens.append(get)
+            else:
+                for g in get:
+                    tokens.append('GET')
+                    tokens.append(g)
         if desc:
             tokens.append('DESC')
         if alpha:
